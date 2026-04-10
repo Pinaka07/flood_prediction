@@ -54,7 +54,6 @@ font-size:18px;
 <div class="container">
 <h2>Flood Prediction</h2>
 
-<!-- Minimal inputs (you can expand later) -->
 <input id="Rain_Flag" placeholder="Rain Flag (0/1)">
 <input id="Pressure_hPa" placeholder="Pressure">
 <input id="Temperature_K" placeholder="Temperature">
@@ -70,12 +69,26 @@ const API_URL = "https://flood-prediction-xto7.onrender.com";
 
 async function predict(){
 
-const data={
-Rain_Flag:parseFloat(document.getElementById("Rain_Flag").value),
-Pressure_hPa:parseFloat(document.getElementById("Pressure_hPa").value),
-Temperature_K:parseFloat(document.getElementById("Temperature_K").value),
-Relative_Humidity:parseFloat(document.getElementById("Relative_Humidity").value),
+try{
 
+// ✅ Validate inputs
+const Rain_Flag = document.getElementById("Rain_Flag").value;
+const Pressure = document.getElementById("Pressure_hPa").value;
+const Temp = document.getElementById("Temperature_K").value;
+const Humidity = document.getElementById("Relative_Humidity").value;
+
+if(!Rain_Flag || !Pressure || !Temp || !Humidity){
+document.getElementById("result").innerText="Please fill all fields!";
+return;
+}
+
+const data={
+Rain_Flag:parseFloat(Rain_Flag),
+Pressure_hPa:parseFloat(Pressure),
+Temperature_K:parseFloat(Temp),
+Relative_Humidity:parseFloat(Humidity),
+
+// default values
 Wind_Speed_kmh:10,
 Wind_Direction_deg:180,
 Rain_Rate_mmph:2,
@@ -112,9 +125,21 @@ body:JSON.stringify(data)
 
 const result = await res.json();
 
+// ✅ Handle backend error
+if(result.error){
+document.getElementById("result").innerText="Error: "+result.error;
+return;
+}
+
 document.getElementById("result").innerText =
 "Prediction: "+result.prediction+
 (result.probability?(" | Prob: "+result.probability.toFixed(2)):"");
+
+}catch(err){
+document.getElementById("result").innerText="Request failed!";
+console.error(err);
+}
+
 }
 </script>
 
