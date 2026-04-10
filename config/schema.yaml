@@ -1,0 +1,33 @@
+columns:
+  Rain_Flag: float
+  Pressure_hPa: float
+  Temperature_K: float
+  Relative_Humidity: float
+  Wind_Speed_kmh: float
+  Wind_Direction_deg: float
+  Rain_Rate_mmph: float
+  LWP: float
+  Elevation_Angle: float
+  Azimuth_Angle: float
+  IWV: float
+  IRT1: float
+  RR_3hr: float
+  RR_6hr: float
+  RR_12hr: float
+  rain_intensity: float
+  dRR: float
+  Temp_C: float
+  dT: float
+  dP: float
+  P_3hr_drop: float
+  dWind: float
+  dLWP: float
+  dIWV: float
+  dIRT: float
+  dIWV_1h: float
+  dLWP_1h: float
+  dIRT_1h: float
+  dP_1h: float
+  dWind_1h: float
+
+target_column: flash_flood
