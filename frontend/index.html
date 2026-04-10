@@ -66,6 +66,8 @@ font-size:18px;
 </div>
 
 <script>
+const API_URL = "https://flood-prediction-xto7.onrender.com";
+
 async function predict(){
 
 const data={
@@ -74,7 +76,6 @@ Pressure_hPa:parseFloat(document.getElementById("Pressure_hPa").value),
 Temperature_K:parseFloat(document.getElementById("Temperature_K").value),
 Relative_Humidity:parseFloat(document.getElementById("Relative_Humidity").value),
 
-// 👉 Fill defaults for remaining features
 Wind_Speed_kmh:10,
 Wind_Direction_deg:180,
 Rain_Rate_mmph:2,
@@ -103,15 +104,15 @@ dP_1h:0.5,
 dWind_1h:0.3
 };
 
-const res=await fetch("https://your-app.onrender.com/predict",{
+const res = await fetch(`${API_URL}/predict`,{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify(data)
 });
 
-const result=await res.json();
+const result = await res.json();
 
-document.getElementById("result").innerText=
+document.getElementById("result").innerText =
 "Prediction: "+result.prediction+
 (result.probability?(" | Prob: "+result.probability.toFixed(2)):"");
 }
