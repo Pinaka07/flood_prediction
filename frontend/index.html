@@ -5,21 +5,23 @@
 <title>Flood Prediction App</title>
 <style>
 body{
-font-family:Arial;
-background:#0f172a;
-color:white;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-margin:0;
+	font-family:Arial;
+	background:#0f172a;
+	color:white;
+	margin:0;
+	min-height:100vh;
 }
 .container{
-background:#1e293b;
-padding:30px;
-border-radius:12px;
-width:400px;
-box-shadow:0 0 20px rgba(0,0,0,0.5);
+	background:#1e293b;
+	padding:30px;
+	border-radius:12px;
+	width:500px;
+	max-width:90vw;
+	box-shadow:0 0 20px rgba(0,0,0,0.5);
+	max-height:80vh;
+	overflow-y:auto;
+	margin: 40px auto 0 auto;
+	position: relative;
 }
 h2{text-align:center;}
 input{
@@ -51,17 +53,45 @@ font-size:18px;
 
 <body>
 
+<h1 style="text-align:center; margin-top:24px; font-size:2rem; letter-spacing:1px;">Flood Prediction Web App</h1>
 <div class="container">
-<h2>Flood Prediction</h2>
+<h2 style="text-align:center;">Enter Feature Values</h2>
 
 <input id="Rain_Flag" placeholder="Rain Flag (0/1)">
-<input id="Pressure_hPa" placeholder="Pressure">
-<input id="Temperature_K" placeholder="Temperature">
-<input id="Relative_Humidity" placeholder="Humidity">
+<input id="Pressure_hPa" placeholder="Pressure (hPa)">
+<input id="Temperature_K" placeholder="Temperature (K)">
+<input id="Relative_Humidity" placeholder="Relative Humidity (%)">
+<input id="Wind_Speed_kmh" placeholder="Wind Speed (km/h)">
+<input id="Wind_Direction_deg" placeholder="Wind Direction (deg)">
+<input id="Rain_Rate_mmph" placeholder="Rain Rate (mm/hr)">
+<input id="LWP" placeholder="LWP (kg/m^2)">
+<input id="Elevation_Angle" placeholder="Elevation Angle (deg)">
+<input id="Azimuth_Angle" placeholder="Azimuth Angle (deg)">
+<input id="IWV" placeholder="IWV (kg/m^2)">
+<input id="IRT1" placeholder="IRT1 (K)">
+<input id="RR_3hr" placeholder="Rain Rate 3hr (mm)">
+<input id="RR_6hr" placeholder="Rain Rate 6hr (mm)">
+<input id="RR_12hr" placeholder="Rain Rate 12hr (mm)">
+<input id="rain_intensity" placeholder="Rain Intensity (mm/hr)">
+<input id="dRR" placeholder="dRR (mm/hr)">
+<input id="Temp_C" placeholder="Temperature (°C)">
+<input id="dT" placeholder="dT (°C)">
+<input id="dP" placeholder="dP (hPa)">
+<input id="P_3hr_drop" placeholder="Pressure 3hr Drop (hPa)">
+<input id="dWind" placeholder="dWind (km/h)">
+<input id="dLWP" placeholder="dLWP (kg/m^2)">
+<input id="dIWV" placeholder="dIWV (kg/m^2)">
+<input id="dIRT" placeholder="dIRT (K)">
+<input id="dIWV_1h" placeholder="dIWV 1h (kg/m^2)">
+<input id="dLWP_1h" placeholder="dLWP 1h (kg/m^2)">
+<input id="dIRT_1h" placeholder="dIRT 1h (K)">
+<input id="dP_1h" placeholder="dP 1h (hPa)">
+<input id="dWind_1h" placeholder="dWind 1h (km/h)">
 
 <button onclick="predict()">Predict</button>
 
 <div class="result" id="result"></div>
+<div class="result" id="loading" style="display:none; color:#38bdf8;">Loading...</div>
 </div>
 
 <script>
@@ -69,75 +99,67 @@ const API_URL = "https://flood-prediction-xto7.onrender.com";
 
 async function predict(){
 
+	// Show loading
+	document.getElementById("loading").style.display = "block";
+	document.getElementById("result").innerText = "";
+
+
 try{
 
-// ✅ Validate inputs
-const Rain_Flag = document.getElementById("Rain_Flag").value;
-const Pressure = document.getElementById("Pressure_hPa").value;
-const Temp = document.getElementById("Temperature_K").value;
-const Humidity = document.getElementById("Relative_Humidity").value;
 
-if(!Rain_Flag || !Pressure || !Temp || !Humidity){
-document.getElementById("result").innerText="Please fill all fields!";
-return;
+// Collect all 30 feature values
+const fields = [
+	"Rain_Flag", "Pressure_hPa", "Temperature_K", "Relative_Humidity",
+	"Wind_Speed_kmh", "Wind_Direction_deg", "Rain_Rate_mmph", "LWP",
+	"Elevation_Angle", "Azimuth_Angle", "IWV", "IRT1", "RR_3hr", "RR_6hr", "RR_12hr",
+	"rain_intensity", "dRR", "Temp_C", "dT", "dP", "P_3hr_drop", "dWind", "dLWP", "dIWV",
+	"dIRT", "dIWV_1h", "dLWP_1h", "dIRT_1h", "dP_1h", "dWind_1h"
+];
+
+let data = {};
+let missing = false;
+for (const f of fields) {
+	const val = document.getElementById(f).value;
+	if (val === "" || val === null) missing = true;
+	data[f] = parseFloat(val);
+}
+if (missing) {
+	document.getElementById("result").innerText = "Please fill all fields!";
+	document.getElementById("loading").style.display = "none";
+	return;
 }
 
-const data={
-Rain_Flag:parseFloat(Rain_Flag),
-Pressure_hPa:parseFloat(Pressure),
-Temperature_K:parseFloat(Temp),
-Relative_Humidity:parseFloat(Humidity),
-
-// default values
-Wind_Speed_kmh:10,
-Wind_Direction_deg:180,
-Rain_Rate_mmph:2,
-LWP:0.2,
-Elevation_Angle:30,
-Azimuth_Angle:50,
-IWV:20,
-IRT1:250,
-RR_3hr:2,
-RR_6hr:3,
-RR_12hr:4,
-rain_intensity:1,
-dRR:0.1,
-Temp_C:27,
-dT:0.5,
-dP:1,
-P_3hr_drop:2,
-dWind:0.3,
-dLWP:0.1,
-dIWV:0.2,
-dIRT:0.1,
-dIWV_1h:0.2,
-dLWP_1h:0.1,
-dIRT_1h:0.1,
-dP_1h:0.5,
-dWind_1h:0.3
-};
 
 const res = await fetch(`${API_URL}/predict`,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(data)
+	method:"POST",
+	headers:{"Content-Type":"application/json"},
+	body:JSON.stringify(data)
 });
+
+if (!res.ok) {
+	document.getElementById("result").innerText = `Backend unavailable (status ${res.status})`;
+	document.getElementById("loading").style.display = "none";
+	return;
+}
 
 const result = await res.json();
 
-// ✅ Handle backend error
 if(result.error){
-document.getElementById("result").innerText="Error: "+result.error;
-return;
+	document.getElementById("result").innerText="Error: "+result.error;
+	document.getElementById("loading").style.display = "none";
+	return;
 }
 
 document.getElementById("result").innerText =
-"Prediction: "+result.prediction+
-(result.probability?(" | Prob: "+result.probability.toFixed(2)):"");
+	"Prediction: "+result.prediction+
+	(result.probability?(" | Prob: "+result.probability.toFixed(2)):"");
+	document.getElementById("loading").style.display = "none";
+
 
 }catch(err){
-document.getElementById("result").innerText="Request failed!";
-console.error(err);
+	document.getElementById("result").innerText="Request failed!";
+	console.error(err);
+	document.getElementById("loading").style.display = "none";
 }
 
 }

@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import joblib
 import pandas as pd
 import os
@@ -7,18 +9,26 @@ from src.configuration.config import FEATURE_NAMES
 
 app = FastAPI()
 
-# 🔥 CORS (IMPORTANT for frontend integration)
+# 🔥 Enable CORS (for frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # allow all (you can restrict later)
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 🔥 Load models at startup
-MODEL_DIR = "artifacts/models"
+# 🔥 Base directory (important for Render)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# 🔥 Serve frontend folder
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+# 🔥 Model directory
+MODEL_DIR = os.path.join(BASE_DIR, "artifacts", "models")
+
+# 🔥 Load models safely
 try:
     scaler = joblib.load(os.path.join(MODEL_DIR, "scaler.pkl"))
     model = joblib.load(os.path.join(MODEL_DIR, "best_model.pkl"))
@@ -35,10 +45,15 @@ except Exception as e:
     iso_model = None
 
 
-# ✅ Root endpoint
-@app.get("/")
-def home():
-    return {"message": "Flood Prediction API is running"}
+# ✅ Serve frontend at "/"
+@app.get("/", response_class=HTMLResponse)
+def serve_frontend():
+    try:
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"<h3>Error loading frontend: {e}</h3>"
 
 
 # ✅ Health check
@@ -57,10 +72,7 @@ def predict(data: dict):
         if model is None or scaler is None:
             return {"error": "Model not loaded properly"}
 
-        # Convert input to DataFrame
         df = pd.DataFrame([data])
-
-        # Ensure feature order
         X = df[FEATURE_NAMES]
 
         # Scale
