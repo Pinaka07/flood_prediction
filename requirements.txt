@@ -10,6 +10,7 @@ imbalanced-learn>=0.12
 # Serving
 fastapi>=0.110
 uvicorn>=0.29
+vercel-fastapi>=0.0.3
 
 # Experiment tracking
 mlflow>=2.12
