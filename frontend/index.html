@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flash Flood Prediction System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #060d1a;
+    --surface:   #0b1629;
+    --card:      #0f1e35;
+    --border:    rgba(56,189,248,0.12);
+    --accent:    #38bdf8;
+    --danger:    #ef4444;
+    --safe:      #22d3a5;
+    --warning:   #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --mono:      'Space Mono', monospace;
+    --sans:      'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated background grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Rain animation ── */
+  .rain-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.15;
+  }
+
+  /* ── Layout ── */
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 20px rgba(56,189,248,0.3);
+    flex-shrink: 0;
+  }
+
+  .brand-text h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  .brand-text p {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: rgba(56,189,248,0.05);
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .status-dot.online { background: var(--safe); box-shadow: 0 0 8px var(--safe); animation: pulse 2s infinite; }
+  .status-dot.offline { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Main grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(56,189,248,0.03);
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .section-count {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    background: rgba(56,189,248,0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .panel-body { padding: 22px; }
+
+  /* ── Feature sections ── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 18px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label:first-child { margin-top: 0; }
+
+  .section-label span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ── Field grid ── */
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field label {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .field input {
+    background: var(--surface);
+    border: 1px solid rgba(56,189,248,0.15);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 9px 12px;
+    width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.1);
+  }
+
+  .field input.invalid {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.1);
+  }
+
+  .field input::placeholder { color: #374151; }
+
+  /* ── Sidebar ── */
+  .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── Predict button ── */
+  .predict-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #0369a1, #0ea5e9);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    box-shadow: 0 4px 20px rgba(14,165,233,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .predict-btn::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+
+  .predict-btn:hover::before { transform: translateX(100%); }
+  .predict-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(14,165,233,0.4); }
+  .predict-btn:active { transform: translateY(0); }
+  .predict-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-inner { display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+  /* ── Result card ── */
+  .result-card {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    transition: border-color 0.4s;
+  }
+
+  .result-card.flood { border-color: rgba(239,68,68,0.5); }
+  .result-card.safe  { border-color: rgba(34,211,165,0.5); }
+
+  .result-top {
+    padding: 24px 22px 20px;
+    background: var(--card);
+    text-align: center;
+  }
+
+  .result-icon { font-size: 3rem; margin-bottom: 10px; line-height: 1; }
+
+  .result-label {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .result-label.flood { color: var(--danger); }
+  .result-label.safe  { color: var(--safe); }
+
+  .result-sub {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .result-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--border);
+  }
+
+  .stat {
+    padding: 14px 16px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .stat:last-child { border-right: none; }
+
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .stat-key {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 3px;
+  }
+
+  /* ── Risk bar ── */
+  .risk-bar-wrap {
+    padding: 16px 22px;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+  }
+
+  .risk-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .risk-bar-track {
+    height: 6px;
+    background: var(--surface);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .risk-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* ── Placeholder / loading states ── */
+  .result-placeholder {
+    padding: 36px 22px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .result-placeholder .ph-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.3; }
+  .result-placeholder p { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  .spinner {
+    display: inline-block;
+    width: 20px; height: 20px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Info card ── */
+  .info-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+
+  .info-card h3 {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(56,189,248,0.06);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+  }
+
+  .info-row:last-child { border-bottom: none; }
+  .info-key { color: var(--muted); }
+  .info-val { color: var(--text); font-weight: 700; }
+  .badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .badge-blue { background: rgba(56,189,248,0.15); color: var(--accent); }
+  .badge-green { background: rgba(34,211,165,0.15); color: var(--safe); }
+
+  /* ── Error toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: #1a0a0a;
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #fca5a5;
+    max-width: 320px;
+    z-index: 100;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: transform 0.3s, opacity 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ── Fade-in animation ── */
+  .fade-in {
+    animation: fadeIn 0.5s ease both;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  /* ── Validation error msg ── */
+  .field-error {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    color: var(--danger);
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- Rain canvas -->
+<canvas class="rain-canvas" id="rainCanvas"></canvas>
+
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🌊</div>
+      <div class="brand-text">
+        <h1>Flash Flood Prediction</h1>
+        <p>Microwave Radiometer ML System</p>
+      </div>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Checking API...</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="grid">
+
+    <!-- Left: Input form -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Sensor Input Parameters</span>
+        <span class="section-count" id="filledCount">0 / 25 filled</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- Section: Atmospheric -->
+        <div class="section-label"><span style="background:#38bdf8"></span>Atmospheric</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Rain Flag</label>
+            <input type="number" id="Rain_Flag" placeholder="0 or 1" min="0" max="1" step="1">
+          </div>
+          <div class="field">
+            <label>Pressure (hPa)</label>
+            <input type="number" id="Pressure_hPa" placeholder="e.g. 1013.25">
+          </div>
+          <div class="field">
+            <label>Temperature (K)</label>
+            <input type="number" id="Temperature_K" placeholder="e.g. 293.15">
+          </div>
+          <div class="field">
+            <label>Relative Humidity (%)</label>
+            <input type="number" id="Relative_Humidity" placeholder="e.g. 78.5" min="0" max="100">
+          </div>
+          <div class="field">
+            <label>Temperature (°C)</label>
+            <input type="number" id="Temp_C" placeholder="e.g. 20.0">
+          </div>
+        </div>
+
+        <!-- Section: Wind -->
+        <div class="section-label"><span style="background:#a78bfa"></span>Wind</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Wind Speed (km/h)</label>
+            <input type="number" id="Wind_Speed_kmh" placeholder="e.g. 12.3" min="0">
+          </div>
+          <div class="field">
+            <label>Wind Direction (°)</label>
+            <input type="number" id="Wind_Direction_deg" placeholder="e.g. 180" min="0" max="360">
+          </div>
+        </div>
+
+        <!-- Section: Radiometer -->
+        <div class="section-label"><span style="background:#fb923c"></span>Radiometer</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Rain Rate (mm/hr)</label>
+            <input type="number" id="Rain_Rate_mmph" placeholder="e.g. 2.5" min="0">
+          </div>
+          <div class="field">
+            <label>LWP (kg/m²)</label>
+            <input type="number" id="LWP" placeholder="e.g. 0.85">
+          </div>
+          <div class="field">
+            <label>Elevation Angle (°)</label>
+            <input type="number" id="Elevation_Angle" placeholder="e.g. 90">
+          </div>
+          <div class="field">
+            <label>Azimuth Angle (°)</label>
+            <input type="number" id="Azimuth_Angle" placeholder="e.g. 0">
+          </div>
+          <div class="field">
+            <label>IWV (kg/m²)</label>
+            <input type="number" id="IWV" placeholder="e.g. 25.4">
+          </div>
+          <div class="field">
+            <label>IRT1 (K)</label>
+            <input type="number" id="IRT1" placeholder="e.g. 280.5">
+          </div>
+        </div>
+
+        <!-- Section: Pressure Changes -->
+        <div class="section-label"><span style="background:#34d399"></span>Pressure Changes</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>dP (hPa)</label>
+            <input type="number" id="dP" placeholder="e.g. -0.5">
+          </div>
+          <div class="field">
+            <label>P 3hr Drop (hPa)</label>
+            <input type="number" id="P_3hr_drop" placeholder="e.g. 1.2">
+          </div>
+          <div class="field">
+            <label>dP 1h (hPa)</label>
+            <input type="number" id="dP_1h" placeholder="e.g. 0.3">
+          </div>
+        </div>
+
+        <!-- Section: Derived Deltas -->
+        <div class="section-label"><span style="background:#f472b6"></span>Derived Deltas</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>dT (°C)</label>
+            <input type="number" id="dT" placeholder="e.g. 0.6">
+          </div>
+          <div class="field">
+            <label>dWind (km/h)</label>
+            <input type="number" id="dWind" placeholder="e.g. -0.5">
+          </div>
+          <div class="field">
+            <label>dLWP (kg/m²)</label>
+            <input type="number" id="dLWP" placeholder="e.g. 0.2">
+          </div>
+          <div class="field">
+            <label>dIWV (kg/m²)</label>
+            <input type="number" id="dIWV" placeholder="e.g. 1.8">
+          </div>
+          <div class="field">
+            <label>dIRT (K)</label>
+            <input type="number" id="dIRT" placeholder="e.g. 0.4">
+          </div>
+        </div>
+
+        <!-- Section: 1-Hour Rates -->
+        <div class="section-label"><span style="background:#fbbf24"></span>1-Hour Rates</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>dIWV 1h (kg/m²)</label>
+            <input type="number" id="dIWV_1h" placeholder="e.g. 2.2">
+          </div>
+          <div class="field">
+            <label>dLWP 1h (kg/m²)</label>
+            <input type="number" id="dLWP_1h" placeholder="e.g. 0.15">
+          </div>
+          <div class="field">
+            <label>dIRT 1h (K)</label>
+            <input type="number" id="dIRT_1h" placeholder="e.g. 0.8">
+          </div>
+          <div class="field">
+            <label>dWind 1h (km/h)</label>
+            <input type="number" id="dWind_1h" placeholder="e.g. 0.6">
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right: Sidebar -->
+    <div class="sidebar">
+
+      <!-- Predict button -->
+      <button class="predict-btn" id="predictBtn" onclick="runPrediction()">
+        <span class="btn-inner" id="btnInner">
+          <span>⚡</span> Analyse Risk
+        </span>
+      </button>
+
+      <!-- Result -->
+      <div class="panel result-card" id="resultCard">
+        <div class="result-placeholder" id="resultPlaceholder">
+          <div class="ph-icon">🛰️</div>
+          <p>Awaiting sensor data</p>
+        </div>
+        <div id="resultContent" style="display:none"></div>
+      </div>
+
+      <!-- Model info -->
+      <div class="info-card">
+        <h3>System Info</h3>
+        <div class="info-row">
+          <span class="info-key">Features</span>
+          <span class="info-val" id="infoFeatures">25</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Model</span>
+          <span class="badge badge-blue" id="infoModel">Loading...</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">SMOTE</span>
+          <span class="badge badge-green">Active</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Threshold</span>
+          <span class="info-val" id="infoThreshold">Adaptive</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Imbalance</span>
+          <span class="info-val">28 : 1</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">API</span>
+          <span class="info-val" id="infoAPI" style="font-size:0.62rem;word-break:break-all">—</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Error toast -->
+<div class="toast" id="toast">
+  <span>⚠</span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────
+const API_URL = window.location.origin; // auto-detect: works local + deployed
+
+// 25 safe features (leakage suspects already removed)
+const FIELDS = [
+  "Rain_Flag","Pressure_hPa","Temperature_K","Relative_Humidity",
+  "Wind_Speed_kmh","Wind_Direction_deg","Rain_Rate_mmph","LWP",
+  "Elevation_Angle","Azimuth_Angle","IWV","IRT1",
+  "Temp_C","dT","dP","P_3hr_drop","dWind","dLWP","dIWV","dIRT",
+  "dIWV_1h","dLWP_1h","dIRT_1h","dP_1h","dWind_1h"
+];
+
+// ── Rain canvas ─────────────────────────────────────────
+(function initRain() {
+  const canvas = document.getElementById('rainCanvas');
+  const ctx = canvas.getContext('2d');
+  let drops = [];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < 80; i++) {
+    drops.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      len: Math.random() * 15 + 8,
+      speed: Math.random() * 3 + 2,
+      opacity: Math.random() * 0.4 + 0.1,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drops.forEach(d => {
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - 1, d.y + d.len);
+      ctx.strokeStyle = `rgba(56,189,248,${d.opacity})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      d.y += d.speed;
+      if (d.y > canvas.height) {
+        d.y = -d.len;
+        d.x = Math.random() * canvas.width;
+      }
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── Health check ────────────────────────────────────────
+async function checkHealth() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  document.getElementById('infoAPI').textContent = API_URL;
+  try {
+    const r = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      const data = await r.json();
+      dot.className = 'status-dot online';
+      txt.textContent = 'API Online';
+      document.getElementById('infoFeatures').textContent = data.n_features || 25;
+      document.getElementById('infoModel').textContent = data.model_loaded ? 'Loaded' : 'Not loaded';
+    } else {
+      throw new Error('bad status');
+    }
+  } catch {
+    dot.className = 'status-dot offline';
+    txt.textContent = 'API Offline';
+    document.getElementById('infoModel').textContent = 'Unavailable';
+  }
+}
+checkHealth();
+
+// ── Fill counter ────────────────────────────────────────
+function updateCounter() {
+  const filled = FIELDS.filter(f => {
+    const el = document.getElementById(f);
+    return el && el.value.trim() !== '';
+  }).length;
+  document.getElementById('filledCount').textContent = `${filled} / ${FIELDS.length} filled`;
+}
+
+FIELDS.forEach(f => {
+  const el = document.getElementById(f);
+  if (el) el.addEventListener('input', updateCounter);
+});
+
+// ── Toast ───────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ── Prediction ──────────────────────────────────────────
+async function runPrediction() {
+  // Collect + validate
+  const data = {};
+  let missingFields = [];
+
+  FIELDS.forEach(f => {
+    const el = document.getElementById(f);
+    if (!el) return;
+    const val = el.value.trim();
+    if (val === '') {
+      el.classList.add('invalid');
+      missingFields.push(f);
+    } else {
+      el.classList.remove('invalid');
+      data[f] = parseFloat(val);
+    }
+  });
+
+  if (missingFields.length > 0) {
+    showToast(`${missingFields.length} field(s) required. Please fill all inputs.`);
+    document.getElementById(missingFields[0]).focus();
+    return;
+  }
+
+  // Loading state
+  const btn = document.getElementById('predictBtn');
+  const inner = document.getElementById('btnInner');
+  btn.disabled = true;
+  inner.innerHTML = '<span class="spinner"></span> Analysing...';
+
+  try {
+    const res = await fetch(`${API_URL}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+
+    showResult(result);
+
+  } catch (err) {
+    showToast(err.message || 'Request failed. Is the server running?');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    inner.innerHTML = '<span>⚡</span> Analyse Risk';
+  }
+}
+
+function showResult(result) {
+  const isFlood = result.prediction === 1;
+  const prob = result.probability;
+  const triggeredBy = result.triggered_by || 'classifier';
+  const label = result.label || (isFlood ? 'Flood' : 'No Flood');
+
+  const card = document.getElementById('resultCard');
+  const placeholder = document.getElementById('resultPlaceholder');
+  const content = document.getElementById('resultContent');
+
+  card.className = 'panel result-card ' + (isFlood ? 'flood' : 'safe');
+  placeholder.style.display = 'none';
+
+  const probPct = prob != null ? (prob * 100).toFixed(1) + '%' : 'N/A';
+  const barColor = isFlood
+    ? 'linear-gradient(90deg,#dc2626,#ef4444)'
+    : 'linear-gradient(90deg,#059669,#22d3a5)';
+  const barWidth = prob != null ? (prob * 100).toFixed(1) : (isFlood ? 95 : 5);
+
+  content.style.display = 'block';
+  content.className = 'fade-in';
+  content.innerHTML = `
+    <div class="result-top">
+      <div class="result-icon">${isFlood ? '🌊' : '✅'}</div>
+      <div class="result-label ${isFlood ? 'flood' : 'safe'}">${isFlood ? 'FLOOD RISK' : 'NO FLOOD'}</div>
+      <div class="result-sub">${triggeredBy === 'anomaly' ? 'Anomaly detected' : 'Classifier prediction'}</div>
+    </div>
+    <div class="result-stats">
+      <div class="stat">
+        <div class="stat-val">${probPct}</div>
+        <div class="stat-key">Probability</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">${isFlood ? 'HIGH' : 'LOW'}</div>
+        <div class="stat-key">Risk Level</div>
+      </div>
+    </div>
+    <div class="risk-bar-wrap">
+      <div class="risk-bar-label">
+        <span>Risk Meter</span>
+        <span>${probPct}</span>
+      </div>
+      <div class="risk-bar-track">
+        <div class="risk-bar-fill" id="riskFill" style="background:${barColor}"></div>
+      </div>
+    </div>
+  `;
+
+  // Animate bar
+  setTimeout(() => {
+    const fill = document.getElementById('riskFill');
+    if (fill) fill.style.width = barWidth + '%';
+  }, 50);
+}
+
+// ── Enter key submits ───────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('predictBtn').disabled) {
+    runPrediction();
+  }
+});
+</script>
+</body>
+</html>

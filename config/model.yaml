@@ -1,0 +1,41 @@
+# config/model.yaml
+# -----------------
+# Hyperparameter grids for GridSearchCV.
+# Scoring objective: F1  (not accuracy — imbalanced dataset)
+# CV strategy: StratifiedKFold(n_splits=5)
+#
+# IsolationForest is excluded — it is unsupervised and cannot be
+# tuned with label-based cross-validation.
+
+cv_folds:   5
+cv_scoring: f1
+
+models:
+
+  LogisticRegression:
+    # Tighter regularisation (smaller C) to prevent over-relying on
+    # the leaky-adjacent features that survived the audit
+    C: [0.001, 0.01, 0.1, 1.0]
+    class_weight: ["balanced"]
+    max_iter: 2000
+
+  DecisionTree:
+    # max_depth capped — unlimited depth memorises training minority samples
+    # min_samples_leaf forces at least 20 samples per leaf
+    max_depth: [4, 6, 8]
+    min_samples_leaf: [10, 20, 50]
+    class_weight: ["balanced"]
+
+  RandomForest:
+    n_estimators: [100, 300]
+    max_depth: [8, 12, null]
+    min_samples_leaf: [5, 10, 20]
+    class_weight: ["balanced_subsample"]
+
+  GradientBoost:
+    n_estimators: [100, 200]
+    learning_rate: [0.05, 0.1]
+    # max_depth=3-5 keeps individual trees weak (preferred for boosting)
+    max_depth: [3, 4, 5]
+    # subsample < 1.0 → stochastic GB → reduces overfitting
+    subsample: [0.7, 0.8, 1.0]
