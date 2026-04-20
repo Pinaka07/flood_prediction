@@ -101,3 +101,5 @@ artifacts/model_performance.csv
 mlruns/
 *.csv
 *.ipynb
+
+.claude
